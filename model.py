@@ -66,7 +66,7 @@ class CharRNN(nn.Module):
                            num_layers=n_layers,
                            batch_first=False)
         self.sentiment_block1 = SentiBlock(embedding_size, 8, no_sentiments)  # earlier: nn.Linear(input_size, 8)
-        self.sentiment_block2 = SentiBlock(no_sentiments, 8, no_sentiments)  # earlier: nn.Linear(8, 3)
+        # self.sentiment_block2 = SentiBlock(no_sentiments, 8, no_sentiments)  # earlier: nn.Linear(8, 3)
         self.dense = nn.Linear(hidden_size, dense_size)
         self.output_layer = nn.Linear(dense_size, output_size)
         self.loss_func = nn.NLLLoss()
@@ -87,7 +87,7 @@ class CharRNN(nn.Module):
         self.hidden = coalesce(self.hidden, self.init_hidden(batch_size))
         self.attn = coalesce(self.attn, self.init_senti(batch_size))
         self.senti_hidden1 = coalesce(self.senti_hidden1, self.sentiment_block1.init_hidden(batch_size))
-        self.senti_hidden2 = coalesce(self.senti_hidden2, self.sentiment_block2.init_hidden(batch_size))
+        # self.senti_hidden2 = coalesce(self.senti_hidden2, self.sentiment_block2.init_hidden(batch_size))
 
         outputs = []
         for x_t in embeddings:
@@ -96,8 +96,8 @@ class CharRNN(nn.Module):
             out = self.dense(out)
             outputs.append(out)
             # For the next time step
-            self.attn, self.senti_hidden1 = self.sentiment_block1(x_t)
-            self.attn, self.senti_hidden2 = self.sentiment_block2(self.attn)
+            self.attn, self.senti_hidden1 = self.sentiment_block1(x_t, self.senti_hidden1)
+            # self.attn, self.senti_hidden2 = self.sentiment_block2(self.attn, self.senti_hidden2)
         outputs = torch.stack(outputs)
         outputs = outputs.view(-1, outputs.size(2))
         outputs = self.output_layer(outputs)
@@ -118,6 +118,15 @@ class CharRNN(nn.Module):
         return int(np.random.choice(len(probabilities), size=1, p=probabilities.data.numpy())[0])
 
     def generate_text(self, encoder: Encoder, starting_seq: Union[list, str], sample_size: int, threshold: float):
+        """
+        Samples some text from the model
+        :param encoder: The encoder to map tokens and ids into each other whenever required
+        :param starting_seq: It should have at least one character. This str is run through the network first and the
+        corresponding sentiments are recorded
+        :param sample_size: The number to characters to generate besides the starting_seq characters
+        :param threshold: The threshold used to pick the cluster for each character
+        :return: The generated ids (and not tokens) and their corresponding clusters
+        """
         def _single_fwd_pass(self, x, threshold):
             out = self.forward(torch.tensor(x).view(1, 1), take_log=False)
             out = out.view(self.output_size)
@@ -145,6 +154,9 @@ class CharRNN(nn.Module):
         return outputs, sentiments
 
     def select_attn(self, attn, threshold=0.5):
+        """Selects the cluster for which the probability is > the threshold which means the threshold
+        should be > 1/(#clusters) to get a unique cluster. If no cluster has a high probability then
+        the function returns another cluster as the result"""
         attn = attn.squeeze()
         for i, score in enumerate(attn):
             if score > threshold:
@@ -156,13 +168,13 @@ class CharRNN(nn.Module):
         self.attn = None
         self.hidden = None
         self.senti_hidden1 = None
-        self.senti_hidden2 = None
+        # self.senti_hidden2 = None
 
     def detach_intermediate_vars(self):
         self.attn = self.attn.detach()
         self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
         self.senti_hidden1 = (self.senti_hidden1[0].detach(), self.senti_hidden1[1].detach())
-        self.senti_hidden2 = (self.senti_hidden2[0].detach(), self.senti_hidden2[1].detach())
+        # self.senti_hidden2 = (self.senti_hidden2[0].detach(), self.senti_hidden2[1].detach())
 
     def init_hidden(self, batch_size):
         return (Variable(torch.zeros(self.n_layers, batch_size, self.hidden_size)),

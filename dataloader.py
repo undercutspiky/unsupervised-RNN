@@ -69,6 +69,7 @@ class Dataset(data.Dataset):
             print('Dataset downloaded\nDecompressing the file')
             decompress_tar_gz(tmp_file_path, '.')
             os.remove(tmp_file_path)
+        print('Loading and pre-processing data')
         for dir_path in ['pos', 'neg']:
             self.sentences.extend(read_lines_from_directory(os.path.join(train_dir_path, dir_path)))
         self.X = [torch.tensor(self.encoder.map_tokens_to_ids(sentence)) for sentence in self.sentences]

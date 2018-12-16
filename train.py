@@ -12,6 +12,7 @@ np.set_printoptions(precision=4)
 
 
 def collate_fn(data):
+    """Sorts the input(the mini-batch) by length and truncates all the data points to the max length of the input"""
     sorted_data = sorted(data, key=lambda x: x[2], reverse=True)
     max_len = sorted_data[0][2]
     x = torch.stack([x_i[:max_len] for x_i, y_i, l_i in sorted_data])
@@ -21,6 +22,7 @@ def collate_fn(data):
 
 
 def get_sentiments(model, x, threshold):
+    """Get clusters for a single example. Note that the functions resets the hidden states of the model."""
     model.reset_intermediate_vars()
     sentiments = []
     for x_i in x:
@@ -30,7 +32,7 @@ def get_sentiments(model, x, threshold):
     return sentiments
 
 
-if __name__ == '__main__':
+def main():
     ds = Dataset('imdb')
     params = {'batch_size': 67,
               'shuffle': True,
@@ -51,9 +53,6 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     step_no = 0
     for epoch in range(epochs):
-        #     if epoch in [1, 3]:
-        #         lr = lr/10
-        #         optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9)
         print('Epoch: ', epoch)
         for x_i, y_i, l_i in training_generator:
             model.reset_intermediate_vars()
@@ -70,7 +69,6 @@ if __name__ == '__main__':
                 batch_loss += loss
                 optimizer.zero_grad()
                 loss.backward()
-
                 nn.utils.clip_grad_norm_(model.parameters(), 1.5)
                 for p in model.parameters():
                     p.data.add_(-lr, p.grad.data)
@@ -83,3 +81,7 @@ if __name__ == '__main__':
                 print_colored_text(gen_sample, sentis, ds.encoder)
                 # Print an example with sentiments
                 print_colored_text(x_i[-1].data.numpy(), get_sentiments(model, x_i[-1], 0.7), ds.encoder)
+
+
+if __name__ == '__main__':
+    main()
