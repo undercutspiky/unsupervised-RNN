@@ -1,11 +1,15 @@
 import os
-import urllib.request
 import tarfile
+import urllib.request
 
-from constants import END_OF_SENTENCE_TOKEN, PADDING_TOKEN, COLOUR_TEMPLATE, MYPY
+import colorama
+
+from constants import END_OF_SENTENCE_TOKEN, PADDING_TOKEN, MYPY, CLASS_TO_COLOUR, COLOUR_TEMPLATE
 
 if MYPY:
     from dataloader import Encoder
+
+colorama.init()
 
 
 def coalesce(value, default_value):
@@ -40,14 +44,12 @@ def print_colored_text(ids: list, classes: list, encoder: 'Encoder') -> None:
     :param classes: A list of values ranging from 0 to 5 representing the colour to be used for ids
     :param encoder: Used to convert an id to token
     """
-    color_codes = list(range(31, 37))
     assert len(ids) == len(classes), 'Length of ids is %d while length of classes is %d' % (len(ids), len(classes))
     for i, id_ in enumerate(ids):
         if id_ == encoder.get_id(END_OF_SENTENCE_TOKEN) or id_ == encoder.get_id(PADDING_TOKEN):
             break
-        print(COLOUR_TEMPLATE.format(colour_code=color_codes[classes[i]], token=encoder.get_token(id_)), end='')
-    # Reset the colour to black for the rest of the print statements
-    print(COLOUR_TEMPLATE.format(colour_code=30, token=''))
+        print(COLOUR_TEMPLATE.format(colour_code=CLASS_TO_COLOUR[classes[i]], token=encoder.get_token(id_)), end='')
+    print('')
 
 
 def download_file(url: str, file_path, flags: str) -> None:
